@@ -1,91 +1,94 @@
 using UnityEngine;
+using System.Collections;
 
 public class Alarm : MonoBehaviour
 {
     private const float MaxVolume = 1f;
     private const float MinVolume = 0f;
+    private const float DefaultFadeSpeed = 1f;
     private const float InitialVolume = 0f;
     
-    [Header("Настройки звука")]
     [SerializeField] private AudioSource _alarmSound;
-    [SerializeField] private float _fadeSpeed = 1f;
+    [SerializeField] private float _fadeSpeed = DefaultFadeSpeed;
     
-    [Header("Отладка")]
-    [SerializeField] private bool _showDebugMessages = true;
-    
-    private bool _isIntruderInside;
-    private float _targetVolume;
+    private Coroutine _currentFadeCoroutine;
+    private bool _isAlarmActive;
 
     private void Awake()
     {
+        InitializeSound();
+    }
+
+    private void OnDestroy()
+    {
+        if (_currentFadeCoroutine != null)
+        {
+            StopCoroutine(_currentFadeCoroutine);
+        }
+    }
+    private void InitializeSound()
+    {
         if (_alarmSound == null)
         {
-            Debug.LogError("Звук сигнализации не назначен! Перетащите AudioSource в это поле.", this);
-            
             return;
         }
         
         _alarmSound.volume = InitialVolume;
         _alarmSound.Stop();
+        _isAlarmActive = false;
+    }
+
+    public void ActivateAlarm()
+    {
+        if (_isAlarmActive)
+        {
+            return;
+        }
         
-        if (_showDebugMessages == true)
+        _isAlarmActive = true;
+        StartFadeCoroutine(MaxVolume);
+        
+        if (_alarmSound.isPlaying == false)
         {
-            Debug.Log("Система сигнализации инициализирована. Ожидаем жулика...", this);
+            _alarmSound.Play();
         }
     }
 
-    private void Update()
+    public void DeactivateAlarm()
     {
-        if (_alarmSound != null)
+        if (_isAlarmActive == false)
         {
-            _alarmSound.volume = Mathf.MoveTowards(
-                current: _alarmSound.volume, 
-                target: _targetVolume, 
-                maxDelta: _fadeSpeed * Time.deltaTime
-            );
-            
-            if (_isIntruderInside == false && Mathf.Approximately(_alarmSound.volume, MinVolume))
-            {
-                _alarmSound.Stop();
-                
-                if (_showDebugMessages == true)
-                {
-                    Debug.Log("Звук сигнализации полностью остановлен.", this);
-                }
-            }
+            return;
         }
-    }
-    
-    private void OnTriggerEnter(Collider other)
-    {
-        if (other.GetType() == typeof(CapsuleCollider))
-        {
-            _isIntruderInside = true;
-            _targetVolume = MaxVolume;
-            
-            if (_alarmSound.isPlaying == false)
-            {
-                _alarmSound.Play();
-            }
-            
-            if (_showDebugMessages == true)
-            {
-                Debug.Log("Жулик вошел! Громкость сигнализации увеличивается...", this);
-            }
-        }
+        
+        _isAlarmActive = false;
+        StartFadeCoroutine(MinVolume);
     }
 
-    private void OnTriggerExit(Collider other)
+    private void StartFadeCoroutine(float targetVolume)
     {
-        if (other.GetType() == typeof(CapsuleCollider))
+        if (_currentFadeCoroutine != null)
         {
-            _isIntruderInside = false;
-            _targetVolume = 0f;
-            
-            if (_showDebugMessages == true)
-            {
-                Debug.Log("Жулик вышел! Громкость сигнализации уменьшается...", this);
-            }
+            StopCoroutine(_currentFadeCoroutine);
         }
+        
+        _currentFadeCoroutine = StartCoroutine(FadeVolumeCoroutine(targetVolume));
+    }
+
+    private IEnumerator FadeVolumeCoroutine(float targetVolume)
+    {
+        while (Mathf.Approximately(_alarmSound.volume, targetVolume) == false)
+        {
+            _alarmSound.volume = Mathf.MoveTowards(_alarmSound.volume, targetVolume,_fadeSpeed * Time.deltaTime);
+            
+            yield return null;
+        }
+        
+        if (_isAlarmActive == false && Mathf.Approximately(_alarmSound.volume, MinVolume))
+        {
+            _alarmSound.Stop();
+        }
+        
+        _currentFadeCoroutine = null;
     }
 }

@@ -6,7 +6,6 @@ public class Intruder : MonoBehaviour
     private const float MinimumMovementThreshold = 0.1f;
     private const float ZeroVelocity = 0f;
     
-    [Header("Настройки движения")]
     [SerializeField] private float _moveSpeed = 5f;
     
     private Rigidbody _rigidbody;
@@ -15,17 +14,12 @@ public class Intruder : MonoBehaviour
     private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
-        
-        if (_rigidbody == null)
-        {
-            Debug.LogError("На жулике отсутствует Rigidbody! Добавьте компонент Rigidbody.", this);
-        }
     }
 
     private void Update()
     {
-        float horizontalInput = Input.GetAxis("Horizontal");
-        float verticalInput = Input.GetAxis("Vertical");
+        float horizontalInput = Input.GetAxis(InputAxes.Horizontal);
+        float verticalInput = Input.GetAxis(InputAxes.Vertical);
         
         _movement = new Vector3(horizontalInput, ZeroVelocity, verticalInput).normalized;
     }
